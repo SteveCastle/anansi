@@ -10,57 +10,32 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
 )
-// Relation is the relationship between a Tag and Content.
-type Relation int
-
-const (
-		// DEFAULT represents no known special relation.
-		DEFAULT Relation = iota
-		// CREATOR is the name of a series of content..
-		CREATOR
-		// SERIES is the name of a series of content..
-		SERIES
-		// REFERENCE is a reference to another work.
-		REFERENCE
-)
-
-// ContentType is the ContentType of a Content struct.
-type ContentType int
-
-const (
-		// IMAGE is any photo content, remote or local.
-		IMAGE ContentType = iota
-		// DOCUMENT is any rich text content, remote or local.
-		DOCUMENT
-		// VIDEO is any video content, remote or local.
-		VIDEO
-		// WEB is any html link content, remote or local.
-		WEB
-)
 
 // Tag is a filterable tag
 type Tag struct {
 	Key string
 	Time time.Time
-	Relation Relation
-	Desctiption string
+	Description string
 	Order int
 }
 
-// MetaParser is an interface for getting type dependent metadata.
-type MetaParser interface {
-	GetMeta()
+
+// Content is an interface for content data.
+type Content interface {
+	url() string
 }
 
-// Content is a specific piece of content.
-type Content struct{
+// Image is a struct containing the fields for graphical content..
+type Image struct{
 	Location string
 	Time time.Time
-	ContentType ContentType
 	Tags []Tag
-	Meta MetaParser
 	Previous *Content
 	Next *Content
+}
+
+func (*Image) url() string {
+	return "http://codeworkshop.dev"
 }
 
 // Results are a list of matching content items.
@@ -69,7 +44,7 @@ type Results []Content
 // ListContentHandler accepts a list of tags and a list of content items to apply them to.
 func ListContentHandler(db *bolt.DB) http.HandlerFunc {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-	   data := []Tag{{Key: "coding"},{Key: "listcontenthandler", Relation: CREATOR}}
+	   data := []Tag{{Key: "coding"},{Key: "listcontenthandler"}}
 	   w.Header().Set("Content-Type", "application/json")
 	   w.WriteHeader(http.StatusCreated)
 	   json.NewEncoder(w).Encode(data)
@@ -80,7 +55,7 @@ func ListContentHandler(db *bolt.DB) http.HandlerFunc {
 // AddContentHandler accepts a list of tags and a list of content items to apply them to.
 func AddContentHandler(db *bolt.DB) http.HandlerFunc {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-	   data := []Tag{{Key: "coding"},{Key: "addcontenthandler", Relation: CREATOR}}
+	   data := []Tag{{Key: "coding"},{Key: "addcontenthandler"}}
 	   w.Header().Set("Content-Type", "application/json")
 	   w.WriteHeader(http.StatusCreated)
 	   json.NewEncoder(w).Encode(data)
@@ -90,7 +65,7 @@ func AddContentHandler(db *bolt.DB) http.HandlerFunc {
 
 // ListTagsHandler Returns a list of all tags in the system.
 func ListTagsHandler(w http.ResponseWriter, r *http.Request) {
-	data := []Tag{{Key: "coding"},{Key: "stephen_castle", Relation: CREATOR}}
+	data := []Tag{{Key: "coding"},{Key: "stephen_castle"}}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(data)
@@ -98,7 +73,7 @@ func ListTagsHandler(w http.ResponseWriter, r *http.Request) {
 
 // AddTagsHandler accepts a list of tags and a list of content items to apply them to.
 func AddTagsHandler(w http.ResponseWriter, r *http.Request) {
-	data := []Tag{{Key: "coding"},{Key: "addtaghandler", Relation: CREATOR}}
+	data := []Tag{{Key: "coding"},{Key: "addtaghandler"}}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(data)

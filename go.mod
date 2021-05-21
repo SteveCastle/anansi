@@ -3,7 +3,10 @@ module github.com/SteveCastle/anansi
 go 1.14
 
 require (
-	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/boltdb/bolt v1.3.1
+	github.com/chris-ramon/douceur v0.2.0 // indirect
+	github.com/gomarkdown/markdown v0.0.0-20210408062403-ad838ccf8cdd // indirect
 	github.com/gorilla/mux v1.7.4
-	golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980 // indirect
+	github.com/gosimple/slug v1.9.0 // indirect
+	github.com/microcosm-cc/bluemonday v1.0.8 // indirect
 )

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit {{.Content.Title}}</title>
+    <style>
+      html,
+      body,
+      main {
+        height: 100%;
+      }
+      body {
+        background-color: lightgray;
+        font-family: arial;
+        margin: 0.2rem;
+      }
+      main,
+      header {
+        display: flex;
+        flex-direction: column;
+        max-width: 600px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 3rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+      p {
+        font-size: 1rem;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+      a {
+        font-weight: 600;
+        color: #ff4f98;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #ff529a;
+        text-decoration: none;
+      }
+      input,
+      textarea,
+      button {
+        margin: 0.5rem 0;
+        border-radius: 4px;
+        border: none;
+        padding: 12px;
+      }
+      button {
+        cursor: pointer;
+      }
+      textarea {
+        flex: 1 1 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Edit {{.Content.Title}}</h1>
+      <a href="/content">Back</a>
+      <button id="delete">Delete</button>
+      <input name="title" id="title" value="{{.Content.Title}}" />
+      <input name="author" id="author" value="{{.Content.Author}}" />
+      <input
+        name="postDate"
+        id="postDate"
+        value="{{.Content.CreatedAt}}"
+        disabled
+      />
+      <textarea name="body" id="body">{{.Content.Body}}</textarea>
+      <button id="submit">Submit</button>
+    </main>
+    <script>
+      async function postData(url = "", data = {}) {
+        const response = await fetch(url, {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          redirect: "follow",
+          referrerPolicy: "no-referrer",
+          body: JSON.stringify(data),
+        });
+        return response.json();
+      }
+
+      async function handleSubmit(e) {
+        console.log("submitting form");
+        const title = document.getElementById("title").value;
+        const author = document.getElementById("author").value;
+        const body = document.getElementById("body").value;
+        const response = await postData("/content/{{.Content.Slug}}", {
+          title,
+          author,
+          body,
+        });
+        console.log(response);
+        window.location.href = "/content/{{.Content.Slug}}";
+      }
+
+      async function deleteData(url = "", data = {}) {
+        const response = await fetch(url, {
+          method: "DELETE",
+          mode: "cors",
+          cache: "no-cache",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          redirect: "follow",
+          referrerPolicy: "no-referrer",
+        });
+        return response.json();
+      }
+
+      async function handleDelete(e) {
+        console.log("delete button clicked");
+        const response = await deleteData("/content/{{.Content.Slug}}");
+        console.log(response);
+        window.location.href = "/";
+      }
+
+      const submitButton = document.getElementById("submit");
+      submitButton.addEventListener("click", handleSubmit);
+
+      const deleteButton = document.getElementById("delete");
+      deleteButton.addEventListener("click", handleDelete);
+    </script>
+  </body>
+</html>

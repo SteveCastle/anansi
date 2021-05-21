@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.SiteMetaData.Title}}</title>
+
+    <style>
+      body {
+        font-family: arial;
+        margin: 0.4rem;
+      }
+      main {
+        display: flex;
+        flex-direction: column;
+        max-width: 600px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 3rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+        margin-top: 2rem;
+      }
+      p {
+        font-size: 1rem;
+      }
+      ul {
+        list-style: none;
+        margin-top: 1rem;
+        padding: 0;
+      }
+      li {
+        margin-top: 0.5rem;
+      }
+      a {
+        font-weight: 600;
+        color: #ff4f98;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #ff529a;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>{{.SiteMetaData.Title}}</h1>
+      <p>{{.SiteMetaData.Description}}</p>
+      <h2>Document Types</h2>
+      <ul>
+        <li><a href="/content">Content</a></li>
+        <li><a href="/tags">Tags</a></li>
+      </ul>
+    </main>
+  </body>
+</html>

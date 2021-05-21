@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Content.Title}} - {{.SiteMetaData.Title}}</title>
+    <style>
+      body {
+        font-family: arial;
+        margin: 0.4rem;
+      }
+      main,
+      header,
+      footer {
+        display: flex;
+        flex-direction: column;
+        max-width: 600px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 3rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+      p {
+        font-size: 1rem;
+        line-height: 1.6rem;
+      }
+      img {
+        display: block;
+        width: 100%;
+      }
+
+      a {
+        font-weight: 600;
+        color: #ff4f98;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #ff529a;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>{{.Content.Title}}</h1>
+      <a href="/content/{{.Content.Slug}}/edit">Edit post</a>
+      <span><strong>By: </strong>{{.Content.Author}}</span>
+      <span><strong>Published At: </strong>{{.Content.CreatedAt}}</span>
+    </header>
+    <main>{{.HTML}}</main>
+    <footer>
+      <a href="/content/">Back</a>
+    </footer>
+  </body>
+</html>

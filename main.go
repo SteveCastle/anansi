@@ -15,6 +15,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/gomarkdown/markdown"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	"github.com/microcosm-cc/bluemonday"
@@ -34,11 +35,12 @@ type SiteMetaData struct {
 
 // Content is the data required to represent a Blog Content Object.
 type Content struct {
-	Author    string    `json:"author,omitempty"`
-	Body      string    `json:"body,omitempty"`
-	CreatedAt time.Time `json:"createdAt,omitempty"`
-	Title     string    `json:"title,omitempty"`
-	Slug      string    `json:"slug,omitempty"`
+	Author     string    `json:"author,omitempty"`
+	Definition string    `json:"body,omitempty"`
+	CreatedAt  time.Time `json:"createdAt,omitempty"`
+	Label      string    `json:"title,omitempty"`
+	Paths      []string
+	Hash       string `json:"slug,omitempty"` // MD5 of File
 }
 
 // ContentMap is a map of contents with the slug as the key.
@@ -46,11 +48,11 @@ type ContentMap map[string]Content
 
 // Content is the data required to represent a Blog Content Object.
 type Tag struct {
-	Author    string    `json:"author,omitempty"`
-	Body      string    `json:"body,omitempty"`
-	CreatedAt time.Time `json:"createdAt,omitempty"`
-	Title     string    `json:"title,omitempty"`
-	Slug      string    `json:"slug,omitempty"`
+	Author     string    `json:"author,omitempty"`
+	Definition string    `json:"body,omitempty"`
+	CreatedAt  time.Time `json:"createdAt,omitempty"`
+	Label      string    `json:"title,omitempty"`
+	Slug       string    `json:"slug,omitempty"`
 }
 
 type TagMap map[string]Tag
@@ -183,16 +185,16 @@ func getContentHandler(db *bolt.DB, t *template.Template) http.HandlerFunc {
 
 	fn := func(res http.ResponseWriter, r *http.Request) {
 		// Get the URL param named slug from the response.
-		slug := mux.Vars(r)["slug"]
-		content, err := getContent(db, slug)
+		hash := mux.Vars(r)["hash"]
+		content, err := getContent(db, hash)
 		if err != nil {
 			res.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 			res.WriteHeader(http.StatusNotFound)
 			res.Write([]byte("404 Page Not Found"))
 			return
 		}
-		log.Printf("Requested: %s by %s \n", content.Title, content.Author)
-		unsafeContentHTML := markdown.ToHTML([]byte(content.Body), nil, nil)
+		log.Printf("Requested: %s by %s \n", content.Label, content.Author)
+		unsafeContentHTML := markdown.ToHTML([]byte(content.Definition), nil, nil)
 		contentHTML := bluemonday.UGCPolicy().SanitizeBytes(unsafeContentHTML)
 		res.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		res.WriteHeader(http.StatusOK)
@@ -205,7 +207,7 @@ func getContentHandler(db *bolt.DB, t *template.Template) http.HandlerFunc {
 func editContentPageHandler(db *bolt.DB, t *template.Template) http.HandlerFunc {
 	fn := func(res http.ResponseWriter, r *http.Request) {
 		// Get the URL param named slug from the response.
-		slug := mux.Vars(r)["slug"]
+		slug := mux.Vars(r)["hash"]
 		content, err := getContent(db, slug)
 		if err != nil {
 			res.Header().Set("Content-Type", "text/plain; charset=UTF-8")
@@ -213,7 +215,7 @@ func editContentPageHandler(db *bolt.DB, t *template.Template) http.HandlerFunc 
 			res.Write([]byte("404 Page Not Found"))
 			return
 		}
-		log.Printf("Requested edit page for: %s by %s \n", content.Title, content.Author)
+		log.Printf("Requested edit page for: %s by %s \n", content.Label, content.Author)
 		res.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		res.WriteHeader(http.StatusOK)
 		t.Execute(res, ContentPageData{SiteMetaData: siteMetaData, Content: *content})
@@ -253,10 +255,10 @@ func createContentHandler(db *bolt.DB) http.HandlerFunc {
 		content.CreatedAt = time.Now()
 
 		// Create a URL safe slug from the timestamp and the title.
-		autoSlug := fmt.Sprintf("%s-%s", slug.Make(content.CreatedAt.Format(time.RFC3339)), slug.Make(content.Title))
-		content.Slug = autoSlug
+		ID := uuid.New().String()
+		content.Hash = ID
 
-		if err = upsertContent(db, content, autoSlug); err != nil {
+		if err = upsertContent(db, content, ID); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			res.Write([]byte("Error writing to DB."))
 			return
@@ -279,7 +281,7 @@ func createContentHandler(db *bolt.DB) http.HandlerFunc {
 func modifyContentHandler(db *bolt.DB) http.HandlerFunc {
 	fn := func(res http.ResponseWriter, r *http.Request) {
 		var content Content
-		slug := mux.Vars(r)["slug"]
+		hash := mux.Vars(r)["hash"]
 		res.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 		if err != nil {
@@ -294,11 +296,11 @@ func modifyContentHandler(db *bolt.DB) http.HandlerFunc {
 				panic(err)
 			}
 		}
-		content.Slug = slug
+		content.Hash = hash
 		content.CreatedAt = time.Now()
 		// Call the upsertContent function passing in the database, a content struct, and the slug.
 		// If there is an error writing to the database write an error to the response and return.
-		if err = upsertContent(db, content, slug); err != nil {
+		if err = upsertContent(db, content, hash); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			res.Write([]byte("Error writing to DB."))
 			return
@@ -453,8 +455,8 @@ func getTagHandler(db *bolt.DB, t *template.Template) http.HandlerFunc {
 			res.Write([]byte("404 Page Not Found"))
 			return
 		}
-		log.Printf("Requested: %s by %s \n", tag.Title, tag.Author)
-		unsafeContentHTML := markdown.ToHTML([]byte(tag.Body), nil, nil)
+		log.Printf("Requested: %s by %s \n", tag.Label, tag.Author)
+		unsafeContentHTML := markdown.ToHTML([]byte(tag.Definition), nil, nil)
 		tagHTML := bluemonday.UGCPolicy().SanitizeBytes(unsafeContentHTML)
 		res.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		res.WriteHeader(http.StatusOK)
@@ -475,7 +477,7 @@ func editTagPageHandler(db *bolt.DB, t *template.Template) http.HandlerFunc {
 			res.Write([]byte("404 Page Not Found"))
 			return
 		}
-		log.Printf("Requested edit page for: %s by %s \n", tag.Title, tag.Author)
+		log.Printf("Requested edit page for: %s by %s \n", tag.Label, tag.Author)
 		res.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		res.WriteHeader(http.StatusOK)
 		t.Execute(res, TagPageData{SiteMetaData: siteMetaData, Tag: *tag})
@@ -515,7 +517,7 @@ func createTagHandler(db *bolt.DB) http.HandlerFunc {
 		tag.CreatedAt = time.Now()
 
 		// Create a URL safe slug from the timestamp and the title.
-		autoSlug := fmt.Sprintf("%s-%s", slug.Make(tag.CreatedAt.Format(time.RFC3339)), slug.Make(tag.Title))
+		autoSlug := fmt.Sprintf("%s-%s", slug.Make(tag.CreatedAt.Format(time.RFC3339)), slug.Make(tag.Definition))
 		tag.Slug = autoSlug
 
 		if err = upsertTag(db, tag, autoSlug); err != nil {
@@ -693,13 +695,73 @@ func upsertEdge(db *bolt.DB, tag Tag, content Content) error {
 		if err != nil {
 			return fmt.Errorf("could not insert edge_by_tag: %v", err)
 		}
-		err = tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByContentBucket)).Put([]byte(content.Slug), []byte(tagBuffer))
+		err = tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByContentBucket)).Put([]byte(content.Hash), []byte(tagBuffer))
 		if err != nil {
 			return fmt.Errorf("could not insert edge_by_content: %v", err)
 		}
 		return nil
 	})
 	return err
+}
+
+// createEdgeHandler is responsible for modifing the tags of a specific tag.
+// It accepts a new tag object as JSON tag in the request body.
+// It writes the new tag object to the URL slug value unlike the createTagHandler
+// which generates a new slug using the tag date and time. Notice this means you can not change the URI.
+// This is left as homework for the reader.
+func createEdgeHandler(db *bolt.DB) http.HandlerFunc {
+	fn := func(res http.ResponseWriter, r *http.Request) {
+		var tag Tag
+		var content Content
+		res.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+		if err != nil {
+			panic(err)
+		}
+		if err := r.Body.Close(); err != nil {
+			panic(err)
+		}
+		if err := json.Unmarshal(body, &tag); err != nil {
+			res.WriteHeader(422) // unprocessable entity
+			if err := json.NewEncoder(res).Encode(err); err != nil {
+				panic(err)
+			}
+		}
+		tag.CreatedAt = time.Now()
+		// Call the upserTag function passing in the database, a tag struct, and the slug.
+		// If there is an error writing to the database write an error to the response and return.
+		if err = upsertEdge(db, tag, content); err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			res.Write([]byte("Error writing to DB."))
+			return
+		}
+		res.WriteHeader(http.StatusCreated)
+		if err := json.NewEncoder(res).Encode(tag); err != nil {
+			panic(err)
+		}
+	}
+	return fn
+}
+
+// DeleteTagHandler deletes the tag with the key matching the slug in the URL.
+func deleteEdgeHandler(db *bolt.DB) http.HandlerFunc {
+	fn := func(res http.ResponseWriter, r *http.Request) {
+		var tag Tag
+		var content Content
+		res.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		if err := deleteEdge(db, tag, content); err != nil {
+			panic(err)
+		}
+		res.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(res).Encode(struct {
+			Deleted bool
+		}{
+			true,
+		}); err != nil {
+			panic(err)
+		}
+	}
+	return fn
 }
 
 // deleteEdge deletes a specific tag by slug.
@@ -720,7 +782,7 @@ func deleteEdge(db *bolt.DB, tag Tag, content Content) error {
 		if err != nil {
 			return fmt.Errorf("could not delete edge_by_tag: %v", err)
 		}
-		err = tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByContentBucket)).Put([]byte(content.Slug), []byte(tagBuffer))
+		err = tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByContentBucket)).Put([]byte(content.Hash), []byte(tagBuffer))
 		if err != nil {
 			return fmt.Errorf("could not delete edge_by_content: %v", err)
 		}
@@ -787,10 +849,10 @@ func newRouter(db *bolt.DB) *mux.Router {
 	r.HandleFunc("/content", contentListHandler(db, contentListTemplate)).Methods("GET")
 	r.HandleFunc("/content", createContentHandler(db)).Methods("POST")
 	r.HandleFunc("/content/create", createContentPageHandler(db, contentCreateTemplate)).Methods("GET")
-	r.HandleFunc("/content/{slug}", getContentHandler(db, contentDetailTemplate)).Methods("GET")
-	r.HandleFunc("/content/{slug}", modifyContentHandler(db)).Methods("POST")
-	r.HandleFunc("/content/{slug}", deleteContentHandler(db)).Methods("DELETE")
-	r.HandleFunc("/content/{slug}/edit", editContentPageHandler(db, contentEditTemplate)).Methods("GET")
+	r.HandleFunc("/content/{hash}", getContentHandler(db, contentDetailTemplate)).Methods("GET")
+	r.HandleFunc("/content/{hash}", modifyContentHandler(db)).Methods("POST")
+	r.HandleFunc("/content/{hash}", deleteContentHandler(db)).Methods("DELETE")
+	r.HandleFunc("/content/{hash}/edit", editContentPageHandler(db, contentEditTemplate)).Methods("GET")
 
 	r.HandleFunc("/tags", tagListHandler(db, tagListTemplate)).Methods("GET")
 	r.HandleFunc("/tags", createTagHandler(db)).Methods("POST")
@@ -799,5 +861,9 @@ func newRouter(db *bolt.DB) *mux.Router {
 	r.HandleFunc("/tags/{slug}", modifyTagHandler(db)).Methods("POST")
 	r.HandleFunc("/tags/{slug}", deleteTagHandler(db)).Methods("DELETE")
 	r.HandleFunc("/tags/{slug}/edit", editTagPageHandler(db, tagEditTemplate)).Methods("GET")
+
+	r.HandleFunc("/tags", createEdgeHandler(db)).Methods("POST")
+	r.HandleFunc("/tags", deleteEdgeHandler(db)).Methods("DELETE")
+
 	return r
 }

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{.Content.Title}} - {{.SiteMetaData.Title}}</title>
+    <title>{{.Content.Label}} - {{.SiteMetaData.Title}}</title>
     <style>
       body {
         font-family: arial;
@@ -45,8 +45,8 @@
   </head>
   <body>
     <header>
-      <h1>{{.Content.Title}}</h1>
-      <a href="/content/{{.Content.Slug}}/edit">Edit post</a>
+      <h1>{{.Content.Label}}</h1>
+      <a href="/content/{{.Content.Hash}}/edit">Edit content</a>
       <span><strong>By: </strong>{{.Content.Author}}</span>
       <span><strong>Published At: </strong>{{.Content.CreatedAt}}</span>
     </header>

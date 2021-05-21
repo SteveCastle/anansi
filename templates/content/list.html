@@ -53,7 +53,7 @@
       <h2>Recently Added Content</h2>
       <ul>
         {{ range $key, $value := .Content }}
-        <li><a href="/content/{{ $key }}"> {{ $value.Title }}</a></li>
+        <li><a href="/content/{{ $key }}"> {{ $value.Label }}</a></li>
         {{ end }}
       </ul>
     </main>

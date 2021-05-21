@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Edit {{.Content.Title}}</title>
+    <title>Edit {{.Content.Label}}</title>
     <style>
       html,
       body,
@@ -62,10 +62,10 @@
   </head>
   <body>
     <main>
-      <h1>Edit {{.Content.Title}}</h1>
+      <h1>Edit {{.Content.Label}}</h1>
       <a href="/content">Back</a>
       <button id="delete">Delete</button>
-      <input name="title" id="title" value="{{.Content.Title}}" />
+      <input name="title" id="title" value="{{.Content.Label}}" />
       <input name="author" id="author" value="{{.Content.Author}}" />
       <input
         name="postDate"
@@ -73,7 +73,7 @@
         value="{{.Content.CreatedAt}}"
         disabled
       />
-      <textarea name="body" id="body">{{.Content.Body}}</textarea>
+      <textarea name="body" id="body">{{.Content.Definition}}</textarea>
       <button id="submit">Submit</button>
     </main>
     <script>
@@ -98,13 +98,13 @@
         const title = document.getElementById("title").value;
         const author = document.getElementById("author").value;
         const body = document.getElementById("body").value;
-        const response = await postData("/content/{{.Content.Slug}}", {
+        const response = await postData("/content/{{.Content.Hash}}", {
           title,
           author,
           body,
         });
         console.log(response);
-        window.location.href = "/content/{{.Content.Slug}}";
+        window.location.href = "/content/{{.Content.Hash}}";
       }
 
       async function deleteData(url = "", data = {}) {
@@ -124,7 +124,7 @@
 
       async function handleDelete(e) {
         console.log("delete button clicked");
-        const response = await deleteData("/content/{{.Content.Slug}}");
+        const response = await deleteData("/content/{{.Content.Hash}}");
         console.log(response);
         window.location.href = "/";
       }

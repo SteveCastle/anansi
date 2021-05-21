@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Edit {{.Tag.Title}}</title>
+    <title>Edit {{.Tag.Label}}</title>
     <style>
       html,
       body,
@@ -62,10 +62,10 @@
   </head>
   <body>
     <main>
-      <h1>Edit {{.Tag.Title}}</h1>
+      <h1>Edit {{.Tag.Label}}</h1>
       <a href="/tags">Back</a>
       <button id="delete">Delete</button>
-      <input name="title" id="title" value="{{.Tag.Title}}" />
+      <input name="title" id="title" value="{{.Tag.Label}}" />
       <input name="author" id="author" value="{{.Tag.Author}}" />
       <input
         name="postDate"
@@ -73,7 +73,7 @@
         value="{{.Tag.CreatedAt}}"
         disabled
       />
-      <textarea name="body" id="body">{{.Tag.Body}}</textarea>
+      <textarea name="body" id="body">{{.Tag.Definition}}</textarea>
       <button id="submit">Submit</button>
     </main>
     <script>

@@ -23,6 +23,8 @@ import (
 const topLevelBucket = "ANANSI"
 const contentBucket = "CONTENT"
 const tagBucket = "TAGS"
+const edgeByContentBucket = "EDGE_BY_CONTENT"
+const edgeByTagBucket = "EDGE_BY_TAG"
 
 // SiteMetaData is general information about the Site
 type SiteMetaData struct {
@@ -309,7 +311,7 @@ func modifyContentHandler(db *bolt.DB) http.HandlerFunc {
 	return fn
 }
 
-// DeleteContentHandler deletes the content with the key matching the slug in the URL.
+// deleteContentHandler deletes the content with the key matching the slug in the URL.
 func deleteContentHandler(db *bolt.DB) http.HandlerFunc {
 	fn := func(res http.ResponseWriter, r *http.Request) {
 		res.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -461,7 +463,7 @@ func getTagHandler(db *bolt.DB, t *template.Template) http.HandlerFunc {
 	return fn
 }
 
-// ediTagPageHandler serves the UI for creating a tag. It is a form that submits to the create tag REST endpoint.
+// editTagPageHandler serves the UI for creating a tag. It is a form that submits to the create tag REST endpoint.
 func editTagPageHandler(db *bolt.DB, t *template.Template) http.HandlerFunc {
 	fn := func(res http.ResponseWriter, r *http.Request) {
 		// Get the URL param named slug from the response.
@@ -593,7 +595,7 @@ func deleteTagHandler(db *bolt.DB) http.HandlerFunc {
 
 // DATA STORE FUNCTIONS
 
-// upserTag writes a tag to the boltDB KV store using the slug as a key, and a serialized tag struct as the value.
+// upsertTag writes a tag to the boltDB KV store using the slug as a key, and a serialized tag struct as the value.
 // If the slug already exists the existing tag will be overwritten.
 func upsertTag(db *bolt.DB, tag Tag, slug string) error {
 
@@ -613,7 +615,7 @@ func upsertTag(db *bolt.DB, tag Tag, slug string) error {
 	return err
 }
 
-// lisTag returns a map of tags indexed by the slug.
+// listTag returns a map of tags indexed by the slug.
 // TODO: We could we add pagination to this!
 func listTag(db *bolt.DB) (TagMap, error) {
 	results := TagMap{}
@@ -639,7 +641,7 @@ func listTag(db *bolt.DB) (TagMap, error) {
 	return results, nil
 }
 
-// geTag gets a specific tag from the database by the slug.
+// getTag gets a specific tag from the database by the slug.
 func getTag(db *bolt.DB, slug string) (*Tag, error) {
 	result := Tag{}
 	err := db.View(func(tx *bolt.Tx) error {
@@ -669,6 +671,64 @@ func deleteTag(db *bolt.DB, slug string) error {
 	return err
 }
 
+// upsertEdge writes a tag to the boltDB KV store using the slug as a key, and a serialized tag struct as the value.
+// If the slug already exists the existing tag will be overwritten.
+func upsertEdge(db *bolt.DB, tag Tag, content Content) error {
+	// Marshal content and tag struct into json which
+	// can be converted to byte array which can be written to Bolt.
+	contentBuffer, err := json.Marshal(content)
+	if err != nil {
+		return err
+	}
+	tagBuffer, err := json.Marshal(tag)
+	if err != nil {
+		return err
+	}
+
+	// Create a Bolt Update transaction and insert edges and reverse edges to buckets.
+	// The values will be copied for fast lookups. This means editing the content or tag will not automatically update here.
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		err := tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByTagBucket)).Put([]byte(tag.Slug), []byte(contentBuffer))
+		if err != nil {
+			return fmt.Errorf("could not insert edge_by_tag: %v", err)
+		}
+		err = tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByContentBucket)).Put([]byte(content.Slug), []byte(tagBuffer))
+		if err != nil {
+			return fmt.Errorf("could not insert edge_by_content: %v", err)
+		}
+		return nil
+	})
+	return err
+}
+
+// deleteEdge deletes a specific tag by slug.
+func deleteEdge(db *bolt.DB, tag Tag, content Content) error {
+	// Marshal content and tag struct into json which
+	// can be converted to byte array which can be written to Bolt.
+	contentBuffer, err := json.Marshal(content)
+	if err != nil {
+		return err
+	}
+	tagBuffer, err := json.Marshal(tag)
+	if err != nil {
+		return err
+	}
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		err := tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByTagBucket)).Put([]byte(tag.Slug), []byte(contentBuffer))
+		if err != nil {
+			return fmt.Errorf("could not delete edge_by_tag: %v", err)
+		}
+		err = tx.Bucket([]byte(topLevelBucket)).Bucket([]byte(edgeByContentBucket)).Put([]byte(content.Slug), []byte(tagBuffer))
+		if err != nil {
+			return fmt.Errorf("could not delete edge_by_content: %v", err)
+		}
+		return nil
+	})
+	return err
+}
+
 // INITIALIZATION FUNCTIONS
 // setupDB sets up the database when the program start.
 //  First it connects to the database, then it creates the buckets required to run the app if they do not exist.
@@ -688,7 +748,15 @@ func setupDB() (*bolt.DB, error) {
 		}
 		_, err = root.CreateBucketIfNotExists([]byte(tagBucket))
 		if err != nil {
-			return fmt.Errorf("could not create content bucket: %v", err)
+			return fmt.Errorf("could not create tag bucket: %v", err)
+		}
+		_, err = root.CreateBucketIfNotExists([]byte(edgeByContentBucket))
+		if err != nil {
+			return fmt.Errorf("could not create edge_by_content bucket: %v", err)
+		}
+		_, err = root.CreateBucketIfNotExists([]byte(edgeByTagBucket))
+		if err != nil {
+			return fmt.Errorf("could not create edge_by_tag bucket: %v", err)
 		}
 		return nil
 	})
